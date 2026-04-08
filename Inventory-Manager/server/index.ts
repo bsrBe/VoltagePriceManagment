@@ -91,8 +91,8 @@ app.use((req, res, next) => {
   // Use environment PORT or default to 5000
   const port = parseInt(process.env.PORT || "5000", 10);
 
-  // FIXED SERVER LISTEN (works on Windows)
-  httpServer.listen(port, "localhost", () => {
-    log(`Server running at http://localhost:${port}`);
+  // FIXED SERVER LISTEN (works on Render and Windows)
+  httpServer.listen(port, "0.0.0.0", () => {
+    log(`Server running at http://0.0.0.0:${port}`);
   });
 })();
