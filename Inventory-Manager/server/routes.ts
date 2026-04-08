@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { EventEmitter } from "events";
+import bcrypt from "bcryptjs";
 import { getStorage } from "./storage";
 import { insertProductSchema, insertCategorySchema, insertUserSchema } from "@shared/schema";
 
@@ -129,7 +130,7 @@ export async function registerRoutes(
       }
 
       const user = await getStorage().getUserByUsername(username);
-      if (!user || user.password !== password) {
+      if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
@@ -152,6 +153,7 @@ export async function registerRoutes(
   app.post("/api/users", async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
+      validatedData.password = await bcrypt.hash(validatedData.password, 10);
       const user = await getStorage().createUser(validatedData);
       res.json(user);
     } catch (error: any) {

@@ -56,7 +56,7 @@ export default function Login() {
                   </div>
                   <Input 
                     id="username" 
-                    placeholder="Enter 'kidus' or 'worker'" 
+                    placeholder="Enter username" 
                     className="pl-10 bg-black/20 border-white/10 focus-visible:ring-primary h-12"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
