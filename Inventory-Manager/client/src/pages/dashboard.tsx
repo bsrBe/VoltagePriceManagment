@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLocation } from "wouter";
 import { 
@@ -70,6 +70,186 @@ const parsePriceString = (val: string) => {
   return isNaN(n) ? 0 : n;
 };
 
+type ProductRowProps = {
+  product: { _id: string; name: string; category: string; price: number };
+  editEntry: { name: string; category: string; price: string | number } | null;
+  isEditMode: boolean;
+  isAdmin: boolean;
+  categories: { _id: string; name: string }[];
+  onEditChange: (id: string, field: string, value: string) => void;
+  onDelete: (id: string) => void;
+  onToggleEditMode: () => void;
+  deleteIsPending: boolean;
+};
+
+const ProductRow = memo(({ product, editEntry, isEditMode, isAdmin, categories, onEditChange, onDelete, onToggleEditMode, deleteIsPending }: ProductRowProps) => {
+  const editData = editEntry ?? product;
+  return (
+  <TableRow className="border-white/10 hover:bg-white/[0.02] transition-colors group">
+    <TableCell className="font-medium">
+      {isEditMode ? (
+        <Input
+          value={editData.name}
+          onChange={(e) => onEditChange(product._id, 'name', e.target.value)}
+          className="h-9 bg-black/50 border-white/20 focus-visible:ring-primary/50 w-full"
+          data-testid={`input-edit-name-${product._id}`}
+        />
+      ) : (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-primary/70">
+            <Package className="w-5 h-5" />
+          </div>
+          <span className="truncate">{product.name}</span>
+        </div>
+      )}
+    </TableCell>
+    <TableCell>
+      {isEditMode ? (
+        <Select value={editData.category} onValueChange={(val) => onEditChange(product._id, 'category', val)}>
+          <SelectTrigger className="h-9 bg-black/50 border-white/20 focus-visible:ring-primary/50 w-full" data-testid={`select-edit-category-${product._id}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-card border-white/10">
+            {categories.map((cat) => (
+              <SelectItem key={cat._id} value={cat.name}>{cat.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Badge variant="secondary" className="bg-white/10 hover:bg-white/15 text-white/80 font-normal border-0 truncate">
+          {product.category}
+        </Badge>
+      )}
+    </TableCell>
+    <TableCell className="text-right">
+      {isEditMode ? (
+        <div className="flex justify-end">
+          <Input
+            type="text"
+            value={formatPriceInput(String(editData.price))}
+            onChange={(e) => onEditChange(product._id, 'price', e.target.value)}
+            className="h-9 pl-3 bg-black/50 border-white/20 focus-visible:ring-primary/50 text-right w-24"
+            data-testid={`input-edit-price-${product._id}`}
+          />
+        </div>
+      ) : (
+        <span className="font-mono">{product.price ? product.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</span>
+      )}
+    </TableCell>
+    {isAdmin && !isEditMode && (
+      <TableCell className="text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-white">
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-card border-white/10 text-foreground">
+            <DropdownMenuItem className="gap-2 focus:bg-white/10" onClick={onToggleEditMode}>
+              <Edit2 className="w-4 h-4" /> Edit Details
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive gap-2 focus:bg-destructive/20 focus:text-destructive" onClick={() => onDelete(product._id)} disabled={deleteIsPending}>
+              {deleteIsPending ? (
+                <><div className="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" />Deleting...</>
+              ) : (
+                <><Trash2 className="w-4 h-4" /> Delete Product</>
+              )}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    )}
+  </TableRow>
+  );
+});
+
+const ProductCard = memo(({ product, editEntry, isEditMode, isAdmin, categories, onEditChange, onDelete, onToggleEditMode, deleteIsPending }: ProductRowProps) => {
+  const editData = editEntry ?? product;
+  return (
+  <Card className="bg-card border border-white/10 shadow-xl">
+    <CardHeader className="pb-3">
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          {isEditMode ? (
+            <Input
+              value={editData.name}
+              onChange={(e) => onEditChange(product._id, 'name', e.target.value)}
+              className="h-10 bg-black/50 border-white/20 focus-visible:ring-primary/50 text-lg font-semibold"
+              data-testid={`input-edit-name-${product._id}`}
+            />
+          ) : (
+            <CardTitle className="text-lg font-semibold text-white leading-tight">{product.name}</CardTitle>
+          )}
+        </div>
+        {isAdmin && !isEditMode && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white shrink-0">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-card border-white/10 text-foreground">
+              <DropdownMenuItem className="gap-2 focus:bg-white/10" onClick={onToggleEditMode}>
+                <Edit2 className="w-4 h-4" /> Edit Details
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive gap-2 focus:bg-destructive/20 focus:text-destructive" onClick={() => onDelete(product._id)} disabled={deleteIsPending}>
+                {deleteIsPending ? (
+                  <><div className="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" />Deleting...</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Delete Product</>
+                )}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      {isEditMode ? (
+        <div className="space-y-3">
+          <div>
+            <Label className="text-sm text-muted-foreground mb-2 block">Category</Label>
+            <Select value={editData.category} onValueChange={(val) => onEditChange(product._id, 'category', val)}>
+              <SelectTrigger className="h-10 bg-black/50 border-white/20 focus-visible:ring-primary/50" data-testid={`select-edit-category-${product._id}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-white/10">
+                {categories.map((cat) => (
+                  <SelectItem key={cat._id} value={cat.name}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-sm text-muted-foreground mb-2 block">Price</Label>
+            <Input
+              type="text"
+              value={formatPriceInput(String(editData.price))}
+              onChange={(e) => onEditChange(product._id, 'price', e.target.value)}
+              className="h-10 bg-black/50 border-white/20 focus-visible:ring-primary/50 text-xl font-mono text-primary"
+              data-testid={`input-edit-price-${product._id}`}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Category:</span>
+            <Badge variant="secondary" className="bg-white/10 hover:bg-white/15 text-white/80 font-normal border-0">{product.category}</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Price:</span>
+            <span className="text-xl font-mono font-bold text-primary">
+              ${product.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+      )}
+    </CardContent>
+  </Card>
+  );
+});
+
 export default function Dashboard() {
   const { role, logout, users, addUser, removeUser } = useAuth();
   const [, setLocation] = useLocation();
@@ -98,7 +278,9 @@ export default function Dashboard() {
   const [isAddWorkerDialogOpen, setIsAddWorkerDialogOpen] = useState(false);
   const [newWorker, setNewWorker] = useState({ username: "", password: "" });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
+
 
   // Navigation state
   // remember which tab is open in this session; defaults to products
@@ -124,6 +306,10 @@ export default function Dashboard() {
     return () => window.clearTimeout(timer);
   }, [searchQuery]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery]);
+
   const filteredProducts = useMemo(() => {
     if (!debouncedSearchQuery) return products;
 
@@ -136,83 +322,64 @@ export default function Dashboard() {
     );
   }, [products, debouncedSearchQuery]);
 
-  const toggleEditMode = () => {
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
+  const pagedProducts = filteredProducts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const toggleEditMode = useCallback(() => {
     if (isEditMode) {
       setEditedProducts({});
       setIsEditMode(false);
     } else {
-      // convert existing numbers to formatted strings for editing
-      const currentEdits = products.reduce((acc, p) => {
-        acc[p._id] = {
-          ...p,
-          price: formatPriceInput(p.price.toString()),
-        };
-        return acc;
-      }, {} as Record<string, any>);
-      setEditedProducts(currentEdits);
       setIsEditMode(true);
     }
-  };
+  }, [isEditMode]);
 
-  const saveEdits = async () => {
-    setIsSaving(true);
-    try {
-      const promises = Object.entries(editedProducts)
-        .map(([id, product]) => {
-          const original = products.find((p) => p._id === id);
-          if (!original) return null;
+  const saveEdits = useCallback(() => {
+    // Close edit mode immediately — mutations are already optimistic
+    const edits = editedProducts;
+    setIsEditMode(false);
+    setEditedProducts({});
 
-          const prodCopy = { ...product } as any;
-          if (prodCopy.price && typeof prodCopy.price === "string") {
-            prodCopy.price = parsePriceString(prodCopy.price);
-          }
+    const promises = Object.entries(edits)
+      .map(([id, product]) => {
+        const original = products.find((p) => p._id === id);
+        if (!original) return null;
+        const price = typeof product.price === "string" ? parsePriceString(product.price) : product.price;
+        const changes: Record<string, any> = {};
+        if (product.name !== original.name) changes.name = product.name;
+        if (product.category !== original.category) changes.category = product.category;
+        if (price !== original.price) changes.price = price;
+        if (Object.keys(changes).length === 0) return null;
+        return updateProductMutation.mutateAsync({ id, product: changes });
+      })
+      .filter(Boolean) as Promise<unknown>[];
 
-          const changes: Partial<Pick<typeof product, "name" | "category" | "price">> = {};
-          if (prodCopy.name !== original.name) changes.name = prodCopy.name;
-          if (prodCopy.category !== original.category) changes.category = prodCopy.category;
-          if (prodCopy.price !== original.price) changes.price = prodCopy.price;
-
-          if (Object.keys(changes).length === 0) {
-            return null;
-          }
-
-          return updateProductMutation.mutateAsync({ id, product: changes });
-        })
-        .filter(Boolean) as Promise<unknown>[];
-
-      if (promises.length > 0) {
-        await Promise.all(promises);
-      }
-      setIsEditMode(false);
-      setEditedProducts({});
-    } catch (error) {
-      console.error("Failed to save edits:", error);
-    } finally {
-      setIsSaving(false);
+    if (promises.length > 0) {
+      Promise.all(promises).catch((err) => console.error("Failed to save edits:", err));
     }
-  };
+  }, [editedProducts, products, updateProductMutation]);
 
-  const handleEditChange = (id: string, field: string, value: string | number) => {
-    setEditedProducts(prev => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        [field]:
-          field === "price"
-            ? // always keep formatted string in state
-              formatPriceInput(String(value))
-            : value,
-      },
-    }));
-  };
+  const handleEditChange = useCallback((id: string, field: string, value: string | number) => {
+    setEditedProducts(prev => {
+      const existing = prev[id];
+      const base = existing ?? products.find(p => p._id === id) ?? {};
+      return {
+        ...prev,
+        [id]: {
+          ...base,
+          [field]: field === "price" ? formatPriceInput(String(value)) : value,
+        },
+      };
+    });
+  }, [products]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     try {
       await deleteProductMutation.mutateAsync(id);
     } catch (error) {
       console.error("Failed to delete product:", error);
     }
-  };
+  }, [deleteProductMutation]);
 
   const handleAddProduct = async () => {
     const trimmedName = newProduct.name.trim();
@@ -355,71 +522,76 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Header */}
-        <header className="h-16 flex items-center justify-between px-4 lg:px-8 border-b border-white/10 bg-black/20 backdrop-blur-md shrink-0">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden text-muted-foreground hover:text-white"
-              onClick={() => setIsMobileMenuOpen(prev => !prev)}
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
-            <h1 className="text-lg lg:text-xl font-semibold capitalize">{activeTab}</h1>
+        <header className="shrink-0 border-b border-white/10 bg-black/20 backdrop-blur-md">
+          <div className="h-16 flex items-center justify-between px-4 lg:px-8">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden text-muted-foreground hover:text-white"
+                onClick={() => setIsMobileMenuOpen(prev => !prev)}
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+              <h1 className="text-lg lg:text-xl font-semibold capitalize">{activeTab}</h1>
+            </div>
+            {/* Desktop search */}
+            <div className="hidden sm:flex items-center">
+              <div className="relative w-64 lg:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  className="pl-9 bg-black/40 border-white/10 h-10 rounded-full focus-visible:ring-primary/50"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  data-testid="input-search-products"
+                />
+              </div>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="relative w-full sm:w-64 lg:w-72">
+          {/* Mobile search — full width below title row */}
+          <div className="sm:hidden px-4 pb-3">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search by name or category..." 
-                className="pl-9 bg-black/40 border-white/10 h-10 w-full rounded-full focus-visible:ring-primary/50 transition-all"
+              <Input
+                placeholder="Search by name or category..."
+                className="pl-9 bg-black/40 border-white/10 h-10 w-full rounded-full focus-visible:ring-primary/50"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                data-testid="input-search-products"
               />
             </div>
           </div>
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-auto p-8">
+        <div className="flex-1 overflow-auto p-4 lg:p-8">
           {activeTab === "products" && (
-            <div className="max-w-6xl mx-auto space-y-6">
+            <div className="max-w-6xl mx-auto space-y-4 lg:space-y-6">
               {/* Toolbar */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Price Management</h2>
-                  <p className="text-muted-foreground mt-1">Manage your catalog and pricing.</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-xl lg:text-2xl font-bold tracking-tight">Price Management</h2>
+                  <p className="text-muted-foreground mt-0.5 text-sm hidden sm:block">Manage your catalog and pricing.</p>
                 </div>
                 
                 {isAdmin && (
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
                     {isEditMode ? (
                       <>
-                        <Button variant="ghost" onClick={toggleEditMode} className="text-muted-foreground hover:text-white" data-testid="button-cancel-edit">
-                          <X className="w-4 h-4 mr-2" /> Cancel
+                        <Button variant="ghost" size="sm" onClick={toggleEditMode} className="text-muted-foreground hover:text-white" data-testid="button-cancel-edit">
+                          <X className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Cancel</span>
                         </Button>
-                        <Button onClick={saveEdits} disabled={isSaving} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20" data-testid="button-save-edits">
-                          {isSaving ? (
-                            <>
-                              <div className="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                              Saving...
-                            </>
-                          ) : (
-                            <>
-                              <Save className="w-4 h-4 mr-2" /> Save
-                            </>
-                          )}
+                        <Button size="sm" onClick={saveEdits} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold" data-testid="button-save-edits">
+                          <Save className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Save</span>
                         </Button>
                       </>
                     ) : (
                       <>
-                        <Button variant="outline" onClick={toggleEditMode} className="border-white/10 hover:bg-white/5" data-testid="button-bulk-edit">
-                          <Edit2 className="w-4 h-4 mr-2" /> Edit
+                        <Button variant="outline" size="sm" onClick={toggleEditMode} className="border-white/10 hover:bg-white/5" data-testid="button-bulk-edit">
+                          <Edit2 className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Edit</span>
                         </Button>
-                        <Button onClick={() => setIsAddProductDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20" data-testid="button-add-product">
-                          <Plus className="w-4 h-4 mr-2" /> Add Item
+                        <Button size="sm" onClick={() => setIsAddProductDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold" data-testid="button-add-product">
+                          <Plus className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add Item</span>
                         </Button>
                       </>
                     )}
@@ -448,101 +620,35 @@ export default function Dashboard() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredProducts.map((product) => {
-                          const isEditing = isEditMode;
-                          const editData = editedProducts[product._id] || product;
-
-                          return (
-                            <TableRow key={product._id} className="border-white/10 hover:bg-white/[0.02] transition-colors group">
-                              <TableCell className="font-medium">
-                                {isEditing ? (
-                                  <Input 
-                                    value={editData.name} 
-                                    onChange={(e) => handleEditChange(product._id, 'name', e.target.value)}
-                                    className="h-9 bg-black/50 border-white/20 focus-visible:ring-primary/50 w-full"
-                                    data-testid={`input-edit-name-${product._id}`}
-                                  />
-                                ) : (
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-primary/70">
-                                      <Package className="w-5 h-5" />
-                                    </div>
-                                    <span className="truncate">{product.name}</span>
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {isEditing ? (
-                                  <Select value={editData.category} onValueChange={(val) => handleEditChange(product._id, 'category', val)}>
-                                    <SelectTrigger className="h-9 bg-black/50 border-white/20 focus-visible:ring-primary/50 w-full" data-testid={`select-edit-category-${product._id}`}>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-card border-white/10">
-                                      {categories.map((cat) => (
-                                        <SelectItem key={cat._id} value={cat.name}>{cat.name}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Badge variant="secondary" className="bg-white/10 hover:bg-white/15 text-white/80 font-normal border-0 truncate">
-                                    {product.category}
-                                  </Badge>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {isEditing ? (
-                                  <div className="flex justify-end">
-                                    <Input 
-                                      type="text"
-                                      // display comma-separated value while editing
-                                      value={formatPriceInput(editData.price)}
-                                      onChange={(e) => {
-                                        handleEditChange(product._id, 'price', e.target.value);
-                                      }}
-                                      className="h-9 pl-3 bg-black/50 border-white/20 focus-visible:ring-primary/50 text-right w-24"
-                                      data-testid={`input-edit-price-${product._id}`}
-                                    />
-                                  </div>
-                                ) : (
-                                  <span className="font-mono">{product.price ? product.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</span>
-                                )}
-                              </TableCell>
-                              {isAdmin && !isEditMode && (
-                                <TableCell className="text-right">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-white">
-                                        <MoreVertical className="w-4 h-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="bg-card border-white/10 text-foreground">
-                                      <DropdownMenuItem className="gap-2 focus:bg-white/10" onClick={() => toggleEditMode()}>
-                                        <Edit2 className="w-4 h-4" /> Edit Details
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem className="text-destructive gap-2 focus:bg-destructive/20 focus:text-destructive" onClick={() => handleDelete(product._id)} disabled={deleteProductMutation.isPending}>
-                                        {deleteProductMutation.isPending ? (
-                                          <>
-                                            <div className="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                            Deleting...
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Trash2 className="w-4 h-4" /> Delete Product
-                                          </>
-                                        )}
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          );
-                        })
+                        pagedProducts.map((product) => (
+                            <ProductRow
+                              key={product._id}
+                              product={product}
+                              editEntry={editedProducts[product._id] ?? null}
+                              isEditMode={isEditMode}
+                              isAdmin={isAdmin}
+                              categories={categories}
+                              onEditChange={handleEditChange}
+                              onDelete={handleDelete}
+                              onToggleEditMode={toggleEditMode}
+                              deleteIsPending={deleteProductMutation.isPending}
+                            />
+                          ))
                       )}
                     </TableBody>
                   </Table>
                 </div>
               </div>
+              {totalPages > 1 && (
+                <div className="hidden lg:flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredProducts.length)} of {filteredProducts.length}</span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="border-white/10 hover:bg-white/5" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
+                    <span className="px-2">{currentPage} / {totalPages}</span>
+                    <Button variant="outline" size="sm" className="border-white/10 hover:bg-white/5" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
+                  </div>
+                </div>
+              )}
 
               {/* Mobile Cards */}
               <div className="block lg:hidden">
@@ -554,127 +660,53 @@ export default function Dashboard() {
                       <p className="text-sm">No products match "{searchQuery}"</p>
                     </div>
                   ) : (
-                    filteredProducts.map((product) => {
-                      const isEditing = isEditMode;
-                      const editData = editedProducts[product._id] || product;
-
-                      return (
-                        <Card key={product._id} className="bg-card border border-white/10 shadow-xl">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                {isEditing ? (
-                                  <Input 
-                                    value={editData.name} 
-                                    onChange={(e) => handleEditChange(product._id, 'name', e.target.value)}
-                                    className="h-10 bg-black/50 border-white/20 focus-visible:ring-primary/50 text-lg font-semibold"
-                                    data-testid={`input-edit-name-${product._id}`}
-                                  />
-                                ) : (
-                                  <CardTitle className="text-lg font-semibold text-white leading-tight">
-                                    {product.name}
-                                  </CardTitle>
-                                )}
-                              </div>
-                              {isAdmin && !isEditMode && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white shrink-0">
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="bg-card border-white/10 text-foreground">
-                                    <DropdownMenuItem className="gap-2 focus:bg-white/10" onClick={() => toggleEditMode()}>
-                                      <Edit2 className="w-4 h-4" /> Edit Details
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="text-destructive gap-2 focus:bg-destructive/20 focus:text-destructive" onClick={() => handleDelete(product._id)} disabled={deleteProductMutation.isPending}>
-                                      {deleteProductMutation.isPending ? (
-                                        <>
-                                          <div className="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                          Deleting...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Trash2 className="w-4 h-4" /> Delete Product
-                                        </>
-                                      )}
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {isEditing ? (
-                              <div className="space-y-3">
-                                <div>
-                                  <Label className="text-sm text-muted-foreground mb-2 block">Category</Label>
-                                  <Select value={editData.category} onValueChange={(val) => handleEditChange(product._id, 'category', val)}>
-                                    <SelectTrigger className="h-10 bg-black/50 border-white/20 focus-visible:ring-primary/50" data-testid={`select-edit-category-${product._id}`}>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-card border-white/10">
-                                      {categories.map((cat) => (
-                                        <SelectItem key={cat._id} value={cat.name}>{cat.name}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label className="text-sm text-muted-foreground mb-2 block">Price</Label>
-                                  <Input 
-                                    type="text"
-                                    value={formatPriceInput(editData.price)}
-                                    onChange={(e) => handleEditChange(product._id, 'price', e.target.value)}
-                                    className="h-10 bg-black/50 border-white/20 focus-visible:ring-primary/50 text-xl font-mono text-primary"
-                                    data-testid={`input-edit-price-${product._id}`}
-                                  />
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-muted-foreground">Category:</span>
-                                  <Badge variant="secondary" className="bg-white/10 hover:bg-white/15 text-white/80 font-normal border-0">
-                                    {product.category}
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-muted-foreground">Price:</span>
-                                  <span className="text-xl font-mono font-bold text-primary">
-                                    ${product.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })
+                    pagedProducts.map((product) => (
+                        <ProductCard
+                          key={product._id}
+                          product={product}
+                          editEntry={editedProducts[product._id] ?? null}
+                          isEditMode={isEditMode}
+                          isAdmin={isAdmin}
+                          categories={categories}
+                          onEditChange={handleEditChange}
+                          onDelete={handleDelete}
+                          onToggleEditMode={toggleEditMode}
+                          deleteIsPending={deleteProductMutation.isPending}
+                        />
+                      ))
                   )}
                 </div>
               </div>
+              {totalPages > 1 && (
+                <div className="flex lg:hidden items-center justify-between text-sm text-muted-foreground">
+                  <span>{(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredProducts.length)} of {filteredProducts.length}</span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="border-white/10 hover:bg-white/5" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
+                    <span>{currentPage} / {totalPages}</span>
+                    <Button variant="outline" size="sm" className="border-white/10 hover:bg-white/5" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === "categories" && (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-3xl mx-auto space-y-4 lg:space-y-6">
               {/* Categories Toolbar */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Category Management</h2>
-                  <p className="text-muted-foreground mt-1">Manage product categories and organize your inventory.</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-xl lg:text-2xl font-bold tracking-tight">Categories</h2>
+                  <p className="text-muted-foreground mt-0.5 text-sm hidden sm:block">Manage product categories.</p>
                 </div>
-                
                 {isAdmin && (
-                  <Button onClick={() => setIsAddCategoryDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20" data-testid="button-add-category">
-                    <Plus className="w-4 h-4 mr-2" /> Add Category
+                  <Button size="sm" onClick={() => setIsAddCategoryDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shrink-0" data-testid="button-add-category">
+                    <Plus className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add Category</span>
                   </Button>
                 )}
               </div>
 
               {/* Categories Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
                 {categories.length === 0 ? (
                   <div className="col-span-full flex flex-col items-center justify-center h-48 text-muted-foreground border border-white/10 rounded-lg bg-black/20">
                     <Tags className="w-12 h-12 opacity-30 mb-3" />
@@ -687,15 +719,15 @@ export default function Dashboard() {
                     return (
                       <div key={category._id} className="bg-card border border-white/10 rounded-lg p-4 hover:border-primary/30 transition-colors group">
                         <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg text-white">{category.name}</h3>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base lg:text-lg text-white truncate">{category.name}</h3>
                             <p className="text-sm text-muted-foreground mt-1">{productCount} {productCount === 1 ? 'product' : 'products'}</p>
                           </div>
                           {isAdmin && productCount === 0 && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-destructive hover:bg-destructive/10"
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity h-8 w-8 text-destructive hover:bg-destructive/10 shrink-0"
                               onClick={() => handleDeleteCategory(category.name)}
                               disabled={deleteCategoryMutation.isPending}
                               data-testid={`button-delete-category-${category.name}`}
@@ -717,17 +749,16 @@ export default function Dashboard() {
           )}
 
           {activeTab === "workers" && (
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-4 lg:space-y-6">
               {/* Workers Toolbar */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Worker Management</h2>
-                  <p className="text-muted-foreground mt-1">Manage worker accounts and access.</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-xl lg:text-2xl font-bold tracking-tight">Workers</h2>
+                  <p className="text-muted-foreground mt-0.5 text-sm hidden sm:block">Manage worker accounts and access.</p>
                 </div>
-                
                 {isAdmin && (
-                  <Button onClick={() => setIsAddWorkerDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20" data-testid="button-add-worker">
-                    <Plus className="w-4 h-4 mr-2" /> Add Worker
+                  <Button size="sm" onClick={() => setIsAddWorkerDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shrink-0" data-testid="button-add-worker">
+                    <Plus className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add Worker</span>
                   </Button>
                 )}
               </div>
@@ -770,7 +801,7 @@ export default function Dashboard() {
                             <TableCell className="text-right">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-white">
+                                  <Button variant="ghost" size="icon" className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-white">
                                     <MoreVertical className="w-4 h-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
